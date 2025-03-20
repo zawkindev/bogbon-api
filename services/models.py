@@ -12,23 +12,23 @@ class Category(models.Model):
 
 class SubCategory(models.Model):
     subcategory_id = models.AutoField(primary_key=True)
-    category_id = models.ForeignKey(Category, on_delete=models.CASCADE)
+    category = models.ForeignKey(Category, on_delete=models.CASCADE)
     subcategory_name = models.CharField(max_length=255)
 
     class Meta:
         db_table = "subcategories"
 
     def __str__(self):
-        return f"{self.category_id.category_name} - {self.subcategory_name}"
+        return f"{self.category.category_name} - {self.subcategory_name}"
 
 class Service(models.Model):
     service_id = models.AutoField(primary_key=True)
-    category_id = models.ForeignKey(Category, on_delete=models.CASCADE)
-    subcategory_id = models.ForeignKey(SubCategory, on_delete=models.CASCADE)
+    category = models.ForeignKey(Category, on_delete=models.CASCADE)
+    subcategory = models.ForeignKey(SubCategory, on_delete=models.CASCADE)
     description = models.TextField()
 
     class Meta:
         db_table = "service"
 
     def __str__(self):
-        return f"{self.subcategory_id.subcategory_name} - {self.description[:50]}"
+        return f"{self.subcategory.subcategory_name} - {self.description[:50]}"
