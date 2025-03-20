@@ -8,6 +8,8 @@ pkgs.mkShell {
     pkgs.python312Packages.pip
     pkgs.python312Packages.virtualenv
     pkgs.python312Packages.django
+    pkgs.python312Packages.psycopg2
+    pkgs.python312Packages.djangorestframework
   ];
 
   shellHook = ''
