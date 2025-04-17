@@ -28,4 +28,9 @@ func InitDB() {
 	}
 
 	DB = database
+
+	var currentUser string
+	DB.Raw("SELECT current_user").Scan(&currentUser)
+	fmt.Println("Connected as:", currentUser)
+
 }
