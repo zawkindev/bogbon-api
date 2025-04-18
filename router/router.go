@@ -21,9 +21,22 @@ func Setup(r *gin.Engine) {
 	api.PUT("/products/:id", controllers.UpdateProduct)
 	api.DELETE("/products/:id", controllers.DeleteProduct)
 
-	// Cart & Orders
-	api.POST("/cart", controllers.AddToCart)
-	api.GET("/cart", controllers.GetCart)
-	api.POST("/order", controllers.CreateOrder)
-	api.GET("/order", controllers.GetOrder)
+	cartGroup := r.Group("/api/cart")
+	{
+		cartGroup.POST("/", controllers.AddToCart)           // Add an item to the cart
+		cartGroup.GET("/", controllers.GetCart)              // Get all cart items for the session
+		cartGroup.PUT("/:id", controllers.UpdateCartItem)    // Update cart item (quantity)
+		cartGroup.DELETE("/:id", controllers.DeleteCartItem) // Delete a cart item
+		cartGroup.DELETE("/", controllers.ClearCart)         // Clear all items from the cart
+	}
+
+	order := r.Group("/api/order")
+	{
+		order.POST("", controllers.CreateOrder)
+		order.GET("", controllers.GetOrder)
+		order.GET("/all", controllers.ListOrders) // optional
+		order.PUT("", controllers.UpdateOrder)
+		order.DELETE("", controllers.DeleteOrder)
+	}
+
 }
