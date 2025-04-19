@@ -1,3 +1,10 @@
+// @title Bogbon API
+// @version 1.0
+// @description API for the Bogbon e-commerce site (categories, products, cart, and orders).
+
+// @host localhost:8080
+// @BasePath /api
+
 package main
 
 import (
@@ -11,6 +18,10 @@ import (
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-contrib/sessions/cookie"
 	"github.com/gin-gonic/gin"
+
+	_ "bogbon-api/docs"
+	"github.com/swaggo/files"
+	"github.com/swaggo/gin-swagger"
 )
 
 func main() {
@@ -38,9 +49,12 @@ func main() {
 		&models.Category{},
 		&models.Product{},
 		&models.Order{},
+		&models.OrderItem{},
+		&models.Cart{},
 		&models.CartItem{},
 	)
 
+	r.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 	// routes
 	router.Setup(r)
 

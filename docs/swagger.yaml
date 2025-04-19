@@ -1,0 +1,10 @@
+basePath: /api
+host: localhost:8080
+info:
+  contact: {}
+  description: API for the Bogbon e-commerce site (categories, products, cart, and
+    orders).
+  title: Bogbon API
+  version: "1.0"
+paths: {}
+swagger: "2.0"

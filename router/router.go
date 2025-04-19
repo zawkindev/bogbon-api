@@ -2,7 +2,6 @@ package router
 
 import (
 	"bogbon-api/controllers"
-
 	"github.com/gin-gonic/gin"
 )
 
@@ -13,6 +12,7 @@ func Setup(r *gin.Engine) {
 	api.GET("/categories", controllers.ListCategories)
 	api.POST("/categories", controllers.CreateCategory)
 	api.DELETE("/categories/:id", controllers.DeleteCategory)
+	api.PUT("/categories/:id", controllers.UpdateCategory)
 
 	// Products
 	api.GET("/products", controllers.ListProducts)
@@ -21,22 +21,23 @@ func Setup(r *gin.Engine) {
 	api.PUT("/products/:id", controllers.UpdateProduct)
 	api.DELETE("/products/:id", controllers.DeleteProduct)
 
-	cartGroup := r.Group("/api/cart")
+	// Cart
+	cart := api.Group("/cart")
 	{
-		cartGroup.POST("/", controllers.AddToCart)           // Add an item to the cart
-		cartGroup.GET("/", controllers.GetCart)              // Get all cart items for the session
-		cartGroup.PUT("/:id", controllers.UpdateCartItem)    // Update cart item (quantity)
-		cartGroup.DELETE("/:id", controllers.DeleteCartItem) // Delete a cart item
-		cartGroup.DELETE("/", controllers.ClearCart)         // Clear all items from the cart
+		cart.POST("", controllers.AddToCart)            // Add item
+		cart.GET("", controllers.GetCart)               // List items
+		cart.PUT("/:id", controllers.UpdateCartItem)    // Update quantity
+		cart.DELETE("/:id", controllers.DeleteCartItem) // Delete one
+		cart.DELETE("", controllers.ClearCart)          // Empty cart
 	}
 
-	order := r.Group("/api/order")
+	// Order
+	order := api.Group("/order")
 	{
-		order.POST("", controllers.CreateOrder)
-		order.GET("", controllers.GetOrder)
-		order.GET("/all", controllers.ListOrders) // optional
-		order.PUT("", controllers.UpdateOrder)
-		order.DELETE("", controllers.DeleteOrder)
+		order.POST("", controllers.CreateOrder)   // Create from cart
+		order.GET("", controllers.GetOrder)       // Latest order
+		order.GET("/all", controllers.ListOrders) // (admin) all orders
+		order.PUT("", controllers.UpdateOrder)    // Mark paid/unpaid
+		order.DELETE("", controllers.DeleteOrder) // Delete all for session
 	}
-
 }

@@ -5,9 +5,17 @@ import (
 	"bogbon-api/models"
 )
 
-func CreateProduct(p *models.Product) error {
-	return config.DB.Create(p).Error
+func CreateProduct(p *models.Product) (*models.Product, error) {
+    if err := config.DB.Create(p).Error; err != nil {
+        return nil, err
+    }
+    // now reload p with its categories
+    if err := config.DB.Preload("Categories").First(p, p.ID).Error; err != nil {
+        return nil, err
+    }
+    return p, nil
 }
+
 
 func GetAllProducts() ([]models.Product, error) {
 	var products []models.Product
