@@ -14,17 +14,25 @@ type Category struct {
 
 // Product: can be "plant" or "service" determined by Type
 type Product struct {
-	ID          uint   `gorm:"primaryKey;autoIncrement"`
-	Name        string `gorm:"not null"`
-	Description string
-	Price       int        `gorm:"not null"`
-	Stock       int        `gorm:"not null"`
-	Type        string     `gorm:"type:VARCHAR(20);not null"`
-	Image       string     `gorm:"size:255"`
-	Categories  []Category `gorm:"many2many:category_products;"`
-	CreatedAt   time.Time
-	UpdatedAt   time.Time
-	DeletedAt   gorm.DeletedAt `gorm:"index"`
+	ID           uint                 `gorm:"primaryKey;autoIncrement"`
+	Price        int                  `gorm:"not null"`
+	Stock        int                  `gorm:"not null"`
+	Type         string               `gorm:"type:VARCHAR(20);not null"`
+	Image        string               `gorm:"size:255"`
+	Categories   []Category           `gorm:"many2many:category_products;"`
+	Translations []ProductTranslation `gorm:"foreignKey:ProductID"`
+	CreatedAt    time.Time
+	UpdatedAt    time.Time
+	DeletedAt    gorm.DeletedAt `gorm:"index"`
+}
+
+// ProductTranslation: translations for product name and description in different languages
+type ProductTranslation struct {
+	ID           uint   `gorm:"primaryKey;autoIncrement"`
+	ProductID    uint   `gorm:"not null"`
+	LanguageCode string `gorm:"size:10;not null"` // For example, "en", "ru", "uz"
+	Name         string `gorm:"not null"`
+	Description  string
 }
 
 // Cart model: holds the cart items before checkout

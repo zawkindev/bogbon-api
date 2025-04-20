@@ -54,6 +54,7 @@ func main() {
 	config.DB.AutoMigrate(
 		&models.Category{},
 		&models.Product{},
+		&models.ProductTranslation{},
 		&models.Order{},
 		&models.OrderItem{},
 		&models.Cart{},
