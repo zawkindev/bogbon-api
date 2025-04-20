@@ -2,6 +2,8 @@ package controllers
 
 import (
 	"fmt"
+	"image"
+	"image/png"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -11,7 +13,9 @@ import (
 	"bogbon-api/models"
 	"bogbon-api/repository"
 
+	"github.com/disintegration/imaging"
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 )
 
 // ListProducts godoc
@@ -126,38 +130,62 @@ func UploadProductImage(c *gin.Context) {
 		return
 	}
 
-	// Get the image file from the form
 	file, err := c.FormFile("image")
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Image file is required"})
 		return
 	}
 
-	// Optional: validate the file type (basic check)
-	if !strings.HasSuffix(strings.ToLower(file.Filename), ".jpg") &&
-		!strings.HasSuffix(strings.ToLower(file.Filename), ".jpeg") &&
-		!strings.HasSuffix(strings.ToLower(file.Filename), ".png") {
+	ext := strings.ToLower(filepath.Ext(file.Filename))
+	if ext != ".jpg" && ext != ".jpeg" && ext != ".png" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Only JPG, JPEG, or PNG files are allowed"})
 		return
 	}
 
-	// Ensure upload directory exists
+	srcFile, err := file.Open()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to open uploaded file"})
+		return
+	}
+	defer srcFile.Close()
+
+	srcImage, _, err := image.Decode(srcFile)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid image format"})
+		return
+	}
+
+	resizedImage := imaging.Resize(srcImage, 400, 0, imaging.Lanczos)
+
 	uploadPath := "./uploads"
 	if err := os.MkdirAll(uploadPath, os.ModePerm); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Unable to create upload directory"})
 		return
 	}
 
-	// Save the file
-	filename := fmt.Sprintf("product_%d_%s", id, filepath.Base(file.Filename))
+	imageUUID := uuid.New().String()
+	filename := fmt.Sprintf("product_%s%s", imageUUID, ext)
 	fullPath := filepath.Join(uploadPath, filename)
-	if err := c.SaveUploadedFile(file, fullPath); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to save image"})
+
+	// Compress based on format
+	switch ext {
+	case ".jpg", ".jpeg":
+		err = imaging.Save(resizedImage, fullPath, imaging.JPEGQuality(70))
+	case ".png":
+		err = imaging.Save(resizedImage, fullPath, imaging.PNGCompressionLevel(png.BestCompression))
+	default:
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Unsupported file type"})
+		return
+	}
+
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to save optimized image"})
 		return
 	}
 
 	baseURL := os.Getenv("BASE_URL")
-	imagePath := fmt.Sprintf("%s/uploads/%s", baseURL, filename) // public path
+	imagePath := fmt.Sprintf("%s/uploads/%s", baseURL, filename)
+
 	err = repository.UpdateProductImage(uint(id), imagePath)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update product image"})
