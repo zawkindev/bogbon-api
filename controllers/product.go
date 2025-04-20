@@ -156,8 +156,8 @@ func UploadProductImage(c *gin.Context) {
 		return
 	}
 
-	// Update the product record in the database
-	imagePath := filepath.ToSlash(fullPath) // use forward slashes for URLs
+	baseURL := os.Getenv("BASE_URL")
+	imagePath := fmt.Sprintf("%s/uploads/%s", baseURL, filename) // public path
 	err = repository.UpdateProductImage(uint(id), imagePath)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update product image"})

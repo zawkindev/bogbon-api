@@ -31,6 +31,12 @@ func main() {
 	// gin
 	r := gin.Default()
 
+	// Serve uploaded images
+	r.Static("/uploads", "./uploads")
+
+	// Limit file size
+	r.MaxMultipartMemory = 8 << 20 // 8 MB
+
 	// session middleware (cookie store)
 	secret := os.Getenv("SESSION_SECRET")
 	if secret == "" {
