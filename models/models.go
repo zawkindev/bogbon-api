@@ -20,6 +20,7 @@ type Product struct {
 	Price       int        `gorm:"not null"`
 	Stock       int        `gorm:"not null"`
 	Type        string     `gorm:"type:VARCHAR(20);not null"`
+	Image       string     `gorm:"size:255"`
 	Categories  []Category `gorm:"many2many:category_products;"`
 	CreatedAt   time.Time
 	UpdatedAt   time.Time

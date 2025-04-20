@@ -20,6 +20,7 @@ func Setup(r *gin.Engine) {
 	api.GET("/products/:id", controllers.GetProduct)
 	api.PUT("/products/:id", controllers.UpdateProduct)
 	api.DELETE("/products/:id", controllers.DeleteProduct)
+	api.POST("/products/:id/image", controllers.UploadProductImage) // New image upload route
 
 	// Cart
 	cart := api.Group("/cart")
@@ -41,3 +42,4 @@ func Setup(r *gin.Engine) {
 		order.DELETE("", controllers.DeleteOrder) // Delete all for session
 	}
 }
+

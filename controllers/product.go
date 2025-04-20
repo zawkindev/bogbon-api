@@ -1,11 +1,16 @@
 package controllers
 
 import (
+	"fmt"
 	"net/http"
+	"os"
+	"path/filepath"
 	"strconv"
+	"strings"
 
 	"bogbon-api/models"
 	"bogbon-api/repository"
+
 	"github.com/gin-gonic/gin"
 )
 
@@ -16,8 +21,6 @@ import (
 // @Success 200 {array} models.Product
 // @Failure 500 {object} map[string]string
 // @Router /products [get]
-
-// ListProducts responds with all products.
 func ListProducts(c *gin.Context) {
 	products, err := repository.GetAllProducts()
 	if err != nil {
@@ -36,8 +39,6 @@ func ListProducts(c *gin.Context) {
 // @Failure 400 {object} map[string]string
 // @Failure 404 {object} map[string]string
 // @Router /products/{id} [get]
-
-// GetProduct responds with a single product by ID.
 func GetProduct(c *gin.Context) {
 	idParam := c.Param("id")
 	id, err := strconv.ParseUint(idParam, 10, 32)
@@ -56,48 +57,21 @@ func GetProduct(c *gin.Context) {
 }
 
 // CreateProduct godoc
-// @Summary Create a new product
-// @Tags Products
-// @Accept json
-// @Produce json
-// @Param product body models.Product true "Product data"
-// @Success 201 {object} models.Product
-// @Failure 400 {object} map[string]string
-// @Failure 500 {object} map[string]string
-// @Router /products [post]
-
-// CreateProduct creates a new product.
 func CreateProduct(c *gin.Context) {
-    var input models.Product
-    if err := c.ShouldBindJSON(&input); err != nil {
-        c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-        return
-    }
-
-    // Capture both the created product and the error
-    created, err := repository.CreateProduct(&input)
-    if err != nil {
-        c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-        return
-    }
-
-    // No need to call GetProductByID, since CreateProduct has already preloaded Categories
-    c.JSON(http.StatusCreated, created)
+	var input models.Product
+	if err := c.ShouldBindJSON(&input); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	created, err := repository.CreateProduct(&input)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusCreated, created)
 }
 
-// UpdateProduct godoc
-// @Summary Update an existing product
-// @Tags Products
-// @Accept json
-// @Produce json
-// @Param id path int true "Product ID"
-// @Param product body models.Product true "Updated product data"
-// @Success 200 {object} models.Product
-// @Failure 400 {object} map[string]string
-// @Failure 500 {object} map[string]string
-// @Router /products/{id} [put]
-
-// UpdateProduct updates an existing product.
+// UpdateProduct updates an existing product (pure JSON)
 func UpdateProduct(c *gin.Context) {
 	idParam := c.Param("id")
 	id, err := strconv.ParseUint(idParam, 10, 32)
@@ -105,20 +79,16 @@ func UpdateProduct(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid product ID"})
 		return
 	}
-
 	var input models.Product
 	if err := c.ShouldBindJSON(&input); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-
 	input.ID = uint(id)
-
 	if err := repository.UpdateProduct(&input); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-
 	c.JSON(http.StatusOK, input)
 }
 
@@ -131,8 +101,6 @@ func UpdateProduct(c *gin.Context) {
 // @Failure 400 {object} map[string]string
 // @Failure 500 {object} map[string]string
 // @Router /products/{id} [delete]
-
-// DeleteProduct removes a product by ID.
 func DeleteProduct(c *gin.Context) {
 	idParam := c.Param("id")
 	id, err := strconv.ParseUint(idParam, 10, 32)
@@ -147,4 +115,54 @@ func DeleteProduct(c *gin.Context) {
 	}
 
 	c.Status(http.StatusNoContent)
+}
+
+// UploadProductImage handles image upload for a specific product
+func UploadProductImage(c *gin.Context) {
+	idParam := c.Param("id")
+	id, err := strconv.Atoi(idParam)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid product ID"})
+		return
+	}
+
+	// Get the image file from the form
+	file, err := c.FormFile("image")
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Image file is required"})
+		return
+	}
+
+	// Optional: validate the file type (basic check)
+	if !strings.HasSuffix(strings.ToLower(file.Filename), ".jpg") &&
+		!strings.HasSuffix(strings.ToLower(file.Filename), ".jpeg") &&
+		!strings.HasSuffix(strings.ToLower(file.Filename), ".png") {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Only JPG, JPEG, or PNG files are allowed"})
+		return
+	}
+
+	// Ensure upload directory exists
+	uploadPath := "./uploads"
+	if err := os.MkdirAll(uploadPath, os.ModePerm); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Unable to create upload directory"})
+		return
+	}
+
+	// Save the file
+	filename := fmt.Sprintf("product_%d_%s", id, filepath.Base(file.Filename))
+	fullPath := filepath.Join(uploadPath, filename)
+	if err := c.SaveUploadedFile(file, fullPath); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to save image"})
+		return
+	}
+
+	// Update the product record in the database
+	imagePath := filepath.ToSlash(fullPath) // use forward slashes for URLs
+	err = repository.UpdateProductImage(uint(id), imagePath)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update product image"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"image_url": imagePath})
 }
