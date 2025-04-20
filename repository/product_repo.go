@@ -4,6 +4,7 @@ import (
 	"bogbon-api/config"
 	"bogbon-api/models"
 	"errors"
+	"os"
 )
 
 // CreateProduct creates a product and its translations
@@ -19,10 +20,10 @@ func CreateProduct(p *models.Product, translations map[string]struct {
 	// Now create translations for the product
 	for lang, translation := range translations {
 		translationRecord := models.ProductTranslation{
-			ProductID:   p.ID,
+			ProductID:    p.ID,
 			LanguageCode: lang,
-			Name:        translation.Name,
-			Description: translation.Description,
+			Name:         translation.Name,
+			Description:  translation.Description,
 		}
 		if err := config.DB.Create(&translationRecord).Error; err != nil {
 			return nil, err
@@ -57,37 +58,6 @@ func GetProductByID(id uint) (*models.Product, error) {
 	return &p, nil
 }
 
-// UpdateProduct updates a product and its translations
-func UpdateProduct(p *models.Product, translations map[string]struct {
-	Name        string `json:"name"`
-	Description string `json:"description"`
-}) error {
-	// Update the product
-	if err := config.DB.Save(p).Error; err != nil {
-		return err
-	}
-
-	// Delete existing translations
-	if err := config.DB.Where("product_id = ?", p.ID).Delete(&models.ProductTranslation{}).Error; err != nil {
-		return err
-	}
-
-	// Add new translations
-	for lang, translation := range translations {
-		translationRecord := models.ProductTranslation{
-			ProductID:   p.ID,
-			LanguageCode: lang,
-			Name:        translation.Name,
-			Description: translation.Description,
-		}
-		if err := config.DB.Create(&translationRecord).Error; err != nil {
-			return err
-		}
-	}
-
-	return nil
-}
-
 // UpdateProductImage updates the image URL for a product
 func UpdateProductImage(productID uint, imagePath string) error {
 	var product models.Product
@@ -95,16 +65,95 @@ func UpdateProductImage(productID uint, imagePath string) error {
 		return err
 	}
 
-	product.Image = imagePath
+	baseURL := os.Getenv("BASE_URL")
+	product.Image = baseURL + "/" + imagePath
 	return config.DB.Save(&product).Error
-}
-
-// DeleteProduct deletes a product by its ID
-func DeleteProduct(id uint) error {
-	return config.DB.Delete(&models.Product{}, id).Error
 }
 
 func CreateTranslation(translation *models.ProductTranslation) error {
 	return config.DB.Create(translation).Error
 }
 
+func GetAllProductsWithTranslations() ([]models.Product, error) {
+	var products []models.Product
+	err := config.DB.Preload("Categories").
+		Preload("Translations").
+		Find(&products).Error
+	if err != nil {
+		return nil, err
+	}
+	return products, nil
+}
+
+func GetProductWithTranslations(id uint) (*models.Product, error) {
+	var product models.Product
+	err := config.DB.
+		Preload("Categories").
+		Preload("Translations").
+		First(&product, id).Error
+	if err != nil {
+		return nil, err
+	}
+	return &product, nil
+}
+
+func UpdateProduct(product *models.Product, translations map[string]struct {
+	Name        string
+	Description string
+}) error {
+	tx := config.DB.Begin()
+
+	// Update product fields
+	if err := tx.Model(&models.Product{}).Where("id = ?", product.ID).
+		Updates(models.Product{
+			Price: product.Price,
+			Stock: product.Stock,
+			Type:  product.Type,
+			Image: product.Image,
+		}).Error; err != nil {
+		tx.Rollback()
+		return err
+	}
+
+	// Remove existing translations
+	if err := tx.Where("product_id = ?", product.ID).Delete(&models.ProductTranslation{}).Error; err != nil {
+		tx.Rollback()
+		return err
+	}
+
+	// Add new translations
+	for lang, t := range translations {
+		translation := models.ProductTranslation{
+			ProductID:    product.ID,
+			LanguageCode: lang,
+			Name:         t.Name,
+			Description:  t.Description,
+		}
+		if err := tx.Create(&translation).Error; err != nil {
+			tx.Rollback()
+			return err
+		}
+	}
+
+	// Commit the transaction
+	return tx.Commit().Error
+}
+
+func DeleteProduct(id uint) error {
+	tx := config.DB.Begin()
+
+	// Delete associated translations first
+	if err := tx.Where("product_id = ?", id).Delete(&models.ProductTranslation{}).Error; err != nil {
+		tx.Rollback()
+		return err
+	}
+
+	// Delete the product
+	if err := tx.Delete(&models.Product{}, id).Error; err != nil {
+		tx.Rollback()
+		return err
+	}
+
+	// Commit the transaction
+	return tx.Commit().Error
+}
