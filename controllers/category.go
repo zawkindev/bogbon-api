@@ -1,23 +1,14 @@
 package controllers
 
 import (
-	"net/http"
-	"strconv"
-
 	"bogbon-api/models"
 	"bogbon-api/repository"
 	"github.com/gin-gonic/gin"
+	"net/http"
+	"strconv"
 )
 
-// ListCategories godoc
-// @Summary Get all categories
-// @Tags Categories
-// @Produce json
-// @Success 200 {array} models.Category
-// @Failure 500 {object} map[string]string
-// @Router /api/categories [get]
-
-// ListCategories responds with all categories.
+// ListCategories responds with all categories including translations.
 func ListCategories(c *gin.Context) {
 	cats, err := repository.GetAllCategories()
 	if err != nil {
@@ -27,39 +18,35 @@ func ListCategories(c *gin.Context) {
 	c.JSON(http.StatusOK, cats)
 }
 
-// CreateCategory godoc
-// @Summary Create a new category
-// @Tags Categories
-// @Accept json
-// @Produce json
-// @Param category body models.Category true "Category to create"
-// @Success 201 {object} models.Category
-// @Failure 400 {object} map[string]string
-// @Failure 500 {object} map[string]string
-// @Router /categories [post]
-
-// CreateCategory adds a new category.
+// CreateCategory adds a new category with translations.
 func CreateCategory(c *gin.Context) {
-	var input models.Category
+	var input struct {
+		Translations map[string]struct {
+			Name string `json:"name"`
+		} `json:"translations"`
+	}
+
 	if err := c.ShouldBindJSON(&input); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-	if err := repository.CreateCategory(&input); err != nil {
+
+	en, ok := input.Translations["en"]
+	if !ok || en.Name == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "English translation is required"})
+		return
+	}
+
+	category := models.Category{}
+
+	createdCategory, err := repository.CreateCategory(&category, input.Translations)
+	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	c.JSON(http.StatusCreated, input)
-}
 
-// DeleteCategory godoc
-// @Summary Delete a category by ID
-// @Tags Categories
-// @Param id path int true "Category ID"
-// @Success 204
-// @Failure 400 {object} map[string]string
-// @Failure 500 {object} map[string]string
-// @Router /categories/{id} [delete]
+	c.JSON(http.StatusCreated, createdCategory)
+}
 
 // DeleteCategory removes a category by ID.
 func DeleteCategory(c *gin.Context) {
@@ -76,18 +63,7 @@ func DeleteCategory(c *gin.Context) {
 	c.Status(http.StatusNoContent)
 }
 
-// UpdateCategory godoc
-// @Summary Update an existing category
-// @Tags Categories
-// @Accept json
-// @Produce json
-// @Param id path int true "Category ID"
-// @Param category body models.Category true "Updated category data"
-// @Success 200 {object} models.Category
-// @Failure 400 {object} map[string]string
-// @Failure 500 {object} map[string]string
-// @Router /categories/{id} [put]
-
+// UpdateCategory updates a category and its translations.
 func UpdateCategory(c *gin.Context) {
 	idParam := c.Param("id")
 	id, err := strconv.Atoi(idParam)
@@ -96,17 +72,30 @@ func UpdateCategory(c *gin.Context) {
 		return
 	}
 
-	var input models.Category
+	var input struct {
+		Translations map[string]struct {
+			Name string `json:"name"`
+		} `json:"translations"`
+	}
+
 	if err := c.ShouldBindJSON(&input); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	updated, err := repository.UpdateCategory(uint(id), &input)
-	if err != nil {
+	// Make sure English name is present
+	en, ok := input.Translations["en"]
+	if !ok || en.Name == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "English translation is required"})
+		return
+	}
+
+	updatedCategory := models.Category{ID: uint(id)}
+
+	if err := repository.UpdateCategory(&updatedCategory, input.Translations); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
-	c.JSON(http.StatusOK, updated)
+	c.JSON(http.StatusOK, updatedCategory)
 }

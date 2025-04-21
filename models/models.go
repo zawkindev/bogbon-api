@@ -7,9 +7,18 @@ import (
 
 // Category: fixed taxonomy
 type Category struct {
-	ID       uint      `gorm:"primaryKey;autoIncrement"`
-	Name     string    `gorm:"unique;not null"`
-	Products []Product `gorm:"many2many:category_products;constraint:OnDelete:CASCADE;"`
+	ID           uint                  `gorm:"primaryKey;autoIncrement"`
+	Translations []CategoryTranslation `gorm:"foreignKey:CategoryID"`
+	Products     []Product             `gorm:"many2many:category_products;constraint:OnDelete:CASCADE;"`
+	CreatedAt    time.Time
+	UpdatedAt    time.Time
+}
+
+type CategoryTranslation struct {
+	ID           uint   `gorm:"primaryKey;autoIncrement"`
+	CategoryID   uint   `gorm:"not null"`
+	LanguageCode string `gorm:"size:10;not null"` // e.g., "en", "es"
+	Name         string `gorm:"not null"`
 }
 
 // Product: can be "plant" or "service" determined by Type

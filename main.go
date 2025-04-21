@@ -53,6 +53,7 @@ func main() {
 	// auto‑migrate
 	config.DB.AutoMigrate(
 		&models.Category{},
+		&models.CategoryTranslation{},
 		&models.Product{},
 		&models.ProductTranslation{},
 		&models.Order{},
