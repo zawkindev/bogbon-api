@@ -11,6 +11,7 @@ import (
 func CreateProduct(p *models.Product, translations map[string]struct {
 	Name        string `json:"name"`
 	Description string `json:"description"`
+	ShortInfo   string `json:"short_info"`
 }) (*models.Product, error) {
 	// Create the product
 	if err := config.DB.Create(p).Error; err != nil {
@@ -24,6 +25,7 @@ func CreateProduct(p *models.Product, translations map[string]struct {
 			LanguageCode: lang,
 			Name:         translation.Name,
 			Description:  translation.Description,
+			ShortInfo:    translation.ShortInfo,
 		}
 		if err := config.DB.Create(&translationRecord).Error; err != nil {
 			return nil, err

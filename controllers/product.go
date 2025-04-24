@@ -100,6 +100,7 @@ func CreateProduct(c *gin.Context) {
 		Translations map[string]struct {
 			Name        string `json:"name"`
 			Description string `json:"description"`
+			ShortInfo   string `json:"short_info"`
 		} `json:"translations"`
 	}
 
@@ -111,7 +112,7 @@ func CreateProduct(c *gin.Context) {
 
 	// Validate English translation
 	en, ok := input.Translations["en"]
-	if !ok || en.Name == "" || en.Description == "" {
+	if !ok || en.Name == "" || en.Description == "" || en.ShortInfo == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "English name and description are required"})
 		return
 	}
