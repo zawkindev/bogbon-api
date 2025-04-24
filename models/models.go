@@ -42,6 +42,7 @@ type ProductTranslation struct {
 	LanguageCode string `gorm:"size:10;not null"` // For example, "en", "ru", "uz"
 	Name         string `gorm:"not null"`
 	Description  string
+	ShortInfo    string
 }
 
 // Cart model: holds the cart items before checkout
