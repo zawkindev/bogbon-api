@@ -19,10 +19,10 @@ jobs:
           if [ "${{ github.ref }}" == "refs/heads/main" ]; then
             cd /srv/gardening/backend/production
             git pull origin main
-            systemctl restart gardening-backend-prod
+            sudo systemctl restart gardening-backend-prod
           else
             cd /srv/gardening/backend/test
             git pull origin develop
-            systemctl restart gardening-backend-test
+            sudo systemctl restart gardening-backend-test
           fi
 
