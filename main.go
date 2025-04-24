@@ -10,16 +10,19 @@ package main
 import (
 	"log"
 	"os"
+	"time"
 
 	"bogbon-api/config"
 	"bogbon-api/models"
 	"bogbon-api/router"
 
+	"github.com/gin-contrib/cors"
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-contrib/sessions/cookie"
 	"github.com/gin-gonic/gin"
 
 	_ "bogbon-api/docs"
+
 	"github.com/swaggo/files"
 	"github.com/swaggo/gin-swagger"
 )
@@ -30,6 +33,15 @@ func main() {
 
 	// gin
 	r := gin.Default()
+
+  r.Use(cors.New(cors.Config{
+    AllowOrigins:     []string{"http://localhost:3000", "https://gardening-service.uz"},
+    AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
+    AllowHeaders:     []string{"Origin", "Content-Type", "Authorization"},
+    ExposeHeaders:    []string{"Content-Length"},
+    AllowCredentials: true,
+    MaxAge: 12 * time.Hour,
+}))
 
 	// Serve uploaded images
 	r.Static("/uploads", "./uploads")
