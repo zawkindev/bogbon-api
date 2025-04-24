@@ -17,8 +17,55 @@ import (
 	"github.com/google/uuid"
 )
 
+// ListProducts now supports ?min_price=&max_price=&type=&in_stock=&category=&q=
 func ListProducts(c *gin.Context) {
-	products, err := repository.GetAllProductsWithTranslations()
+	var f repository.ProductFilter
+
+	// min_price
+	if v := c.Query("min_price"); v != "" {
+		if i, err := strconv.Atoi(v); err == nil {
+			f.MinPrice = &i
+		} else {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid min_price"})
+			return
+		}
+	}
+	// max_price
+	if v := c.Query("max_price"); v != "" {
+		if i, err := strconv.Atoi(v); err == nil {
+			f.MaxPrice = &i
+		} else {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid max_price"})
+			return
+		}
+	}
+	// type
+	f.Type = c.Query("type")
+
+	// in_stock
+	if v := c.Query("in_stock"); v != "" {
+		b, err := strconv.ParseBool(v)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid in_stock"})
+			return
+		}
+		f.InStock = &b
+	}
+
+	// category (can be repeated)
+	for _, v := range c.QueryArray("category") {
+		if id, err := strconv.Atoi(v); err == nil {
+			f.CategoryIDs = append(f.CategoryIDs, uint(id))
+		} else {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid category id"})
+			return
+		}
+	}
+
+	// search term
+	f.Q = c.Query("q")
+
+	products, err := repository.FilterProducts(f)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -294,4 +341,3 @@ func UpdateProductImage(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{"message": "Image uploaded successfully"})
 }
-

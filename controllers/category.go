@@ -8,13 +8,26 @@ import (
 	"strconv"
 )
 
-// ListCategories responds with all categories including translations.
+// ListCategories responds with all categories (including translations),
+// optionally filtered by translation name using ?q=
 func ListCategories(c *gin.Context) {
-	cats, err := repository.GetAllCategories()
+	q := c.Query("q")
+	var cats []models.Category
+	var err error
+
+	if q != "" {
+		// Filter by translated name
+		cats, err = repository.FilterCategories(repository.CategoryFilter{Q: q})
+	} else {
+		// Return all categories
+		cats, err = repository.GetAllCategories()
+	}
+
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
+
 	c.JSON(http.StatusOK, cats)
 }
 

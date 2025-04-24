@@ -16,6 +16,10 @@ type ProductFilter struct {
 	Q           string
 }
 
+type CategoryFilter struct {
+	Q string
+}
+
 // FilterProducts returns products matching any combination of filters
 func FilterProducts(f ProductFilter) ([]models.Product, error) {
 	db := config.DB.
@@ -62,4 +66,22 @@ func FilterProducts(f ProductFilter) ([]models.Product, error) {
 	var products []models.Product
 	err := db.Find(&products).Error
 	return products, err
+}
+
+// FilterCategories by translation name
+func FilterCategories(f CategoryFilter) ([]models.Category, error) {
+	db := config.DB.
+		Model(&models.Category{}).
+		Preload("Translations")
+
+	if f.Q != "" {
+		like := "%" + strings.ToLower(f.Q) + "%"
+		db = db.Joins("JOIN category_translations ct ON ct.category_id = categories.id").
+			Where("LOWER(ct.name) LIKE ?", like).
+			Group("categories.id")
+	}
+
+	var cats []models.Category
+	err := db.Find(&cats).Error
+	return cats, err
 }
