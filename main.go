@@ -1,9 +1,8 @@
-// @title Bogbon API
-// @version 1.0
-// @description API for the Bogbon e-commerce site (categories, products, cart, and orders).
-
-// @host localhost:8080
-// @BasePath /api
+// @title           Bogbon API
+// @version         1.0
+// @description     Swagger documentation for the Bogbon Gin API.
+// @host      localhost:8080
+// @BasePath  /api
 
 package main
 
@@ -34,14 +33,16 @@ func main() {
 	// gin
 	r := gin.Default()
 
-  r.Use(cors.New(cors.Config{
-    AllowOrigins:     []string{"http://localhost:3000", "https://gardening-service.uz"},
-    AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
-    AllowHeaders:     []string{"Origin", "Content-Type", "Authorization"},
-    ExposeHeaders:    []string{"Content-Length"},
-    AllowCredentials: true,
-    MaxAge: 12 * time.Hour,
-}))
+	r.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
+
+	r.Use(cors.New(cors.Config{
+		AllowOrigins:     []string{"http://localhost:3000", "https://gardening-service.uz"},
+		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
+		AllowHeaders:     []string{"Origin", "Content-Type", "Authorization"},
+		ExposeHeaders:    []string{"Content-Length"},
+		AllowCredentials: true,
+		MaxAge:           12 * time.Hour,
+	}))
 
 	// Serve uploaded images
 	r.Static("/uploads", "./uploads")

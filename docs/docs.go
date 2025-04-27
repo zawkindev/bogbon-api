@@ -24,12 +24,13 @@ var SwaggerInfo = &swag.Spec{
 	BasePath:         "/api",
 	Schemes:          []string{},
 	Title:            "Bogbon API",
-	Description:      "API for the Bogbon e-commerce site (categories, products, cart, and orders).",
+	Description:      "Swagger documentation for the Bogbon Gin API.",
 	InfoInstanceName: "swagger",
 	SwaggerTemplate:  docTemplate,
+	LeftDelim:        "{{",
+	RightDelim:       "}}",
 }
 
 func init() {
 	swag.Register(SwaggerInfo.InstanceName(), SwaggerInfo)
 }
-

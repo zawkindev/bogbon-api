@@ -2,8 +2,7 @@ basePath: /api
 host: localhost:8080
 info:
   contact: {}
-  description: API for the Bogbon e-commerce site (categories, products, cart, and
-    orders).
+  description: Swagger documentation for the Bogbon Gin API.
   title: Bogbon API
   version: "1.0"
 paths: {}

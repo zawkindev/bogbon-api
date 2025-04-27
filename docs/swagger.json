@@ -1,7 +1,7 @@
 {
     "swagger": "2.0",
     "info": {
-        "description": "API for the Bogbon e-commerce site (categories, products, cart, and orders).",
+        "description": "Swagger documentation for the Bogbon Gin API.",
         "title": "Bogbon API",
         "contact": {},
         "version": "1.0"
