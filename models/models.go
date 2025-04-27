@@ -8,7 +8,7 @@ import (
 // Category: fixed taxonomy
 type Category struct {
 	ID           uint                  `gorm:"primaryKey;autoIncrement"`
-	Translations []CategoryTranslation `gorm:"foreignKey:CategoryID"`
+	Translations []CategoryTranslation `gorm:"foreignKey:CategoryID;constraint:OnUpdate:CASCADE,OnDelete:CASCADE;"`
 	Products     []Product             `gorm:"many2many:category_products;constraint:OnDelete:CASCADE;"`
 	CreatedAt    time.Time
 	UpdatedAt    time.Time
