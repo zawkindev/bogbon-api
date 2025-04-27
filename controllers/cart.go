@@ -17,13 +17,11 @@ import (
 // @Tags         Cart
 // @Accept       json
 // @Produce      json
-// @Param        input  body      struct{ProductID uint ` + "`json:\"product_id\" binding:\"required\"`" + `;Quantity int ` + "`json:\"quantity\" binding:\"gte=1\"`" + `}  true  "Product to add"
+// @Param input body requests.AddToCartInput true "Product to add"
 // @Success      201    {object}  models.CartItem
-// @Failure      400    {object}  gin.H{"error": "…"}  
-// @Failure      500    {object}  gin.H{"error": "…"}  
+// @Failure      400    {object}  map[string]string
+// @Failure      500    {object}  map[string]string
 // @Router       /cart [post]
-
-// AddToCart adds a product to the user's cart.
 func AddToCart(c *gin.Context) {
 	var input struct {
 		ProductID uint `json:"product_id" binding:"required"`
@@ -54,7 +52,14 @@ func AddToCart(c *gin.Context) {
 	c.JSON(http.StatusCreated, item)
 }
 
-// GetCart returns all items in the user's cart.
+// GetCart godoc
+// @Summary      Get cart items
+// @Description  Returns all items in the user's cart.
+// @Tags         Cart
+// @Produce      json
+// @Success      200 {array} models.CartItem
+// @Failure      500 {object} map[string]string
+// @Router       /cart [get]
 func GetCart(c *gin.Context) {
 	sessionID := utils.GetSessionID(c)
 	cart, err := repository.GetCart(sessionID)
@@ -65,7 +70,18 @@ func GetCart(c *gin.Context) {
 	c.JSON(http.StatusOK, cart.Items)
 }
 
-// UpdateCartItem updates the quantity of a cart item.
+// UpdateCartItem godoc
+// @Summary      Update cart item
+// @Description  Updates the quantity of a specific cart item.
+// @Tags         Cart
+// @Accept       json
+// @Produce      json
+// @Param        id     path      int  true  "Cart Item ID"
+// @Param input body requests.UpdateCartItemInput true "Updated quantity"
+// @Success      200    {object}  map[string]string
+// @Failure      400    {object}  map[string]string
+// @Failure      500    {object}  map[string]string
+// @Router       /cart/{id} [put]
 func UpdateCartItem(c *gin.Context) {
 	idParam := c.Param("id")
 	id, err := strconv.ParseUint(idParam, 10, 32)
@@ -89,7 +105,16 @@ func UpdateCartItem(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"message": "cart item updated"})
 }
 
-// DeleteCartItem removes a single item from the cart.
+// DeleteCartItem godoc
+// @Summary      Delete cart item
+// @Description  Deletes a specific cart item from the cart.
+// @Tags         Cart
+// @Produce      json
+// @Param        id   path      int  true  "Cart Item ID"
+// @Success      204  {object}  nil
+// @Failure      400  {object}  map[string]string
+// @Failure      500  {object}  map[string]string
+// @Router       /cart/{id} [delete]
 func DeleteCartItem(c *gin.Context) {
 	idParam := c.Param("id")
 	id, err := strconv.ParseUint(idParam, 10, 32)
@@ -105,7 +130,14 @@ func DeleteCartItem(c *gin.Context) {
 	c.Status(http.StatusNoContent)
 }
 
-// ClearCart deletes all items in the cart.
+// ClearCart godoc
+// @Summary      Clear cart
+// @Description  Deletes all items in the user's cart.
+// @Tags         Cart
+// @Produce      json
+// @Success      204 {object} nil
+// @Failure      500 {object} map[string]string
+// @Router       /cart/clear [delete]
 func ClearCart(c *gin.Context) {
 	sessionID := utils.GetSessionID(c)
 	if err := repository.ClearCart(sessionID); err != nil {

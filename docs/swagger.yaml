@@ -1,9 +1,249 @@
 basePath: /api
+definitions:
+  models.CartItem:
+    properties:
+      cartID:
+        type: integer
+      id:
+        type: integer
+      product:
+        $ref: '#/definitions/models.Product'
+      productID:
+        type: integer
+      quantity:
+        type: integer
+    type: object
+  models.Category:
+    properties:
+      createdAt:
+        type: string
+      id:
+        type: integer
+      products:
+        items:
+          $ref: '#/definitions/models.Product'
+        type: array
+      translations:
+        items:
+          $ref: '#/definitions/models.CategoryTranslation'
+        type: array
+      updatedAt:
+        type: string
+    type: object
+  models.CategoryTranslation:
+    properties:
+      categoryID:
+        type: integer
+      id:
+        type: integer
+      languageCode:
+        description: e.g., "en", "es"
+        type: string
+      name:
+        type: string
+    type: object
+  models.Product:
+    properties:
+      categories:
+        items:
+          $ref: '#/definitions/models.Category'
+        type: array
+      createdAt:
+        type: string
+      id:
+        type: integer
+      image:
+        type: string
+      price:
+        type: integer
+      stock:
+        type: integer
+      translations:
+        items:
+          $ref: '#/definitions/models.ProductTranslation'
+        type: array
+      type:
+        type: string
+      updatedAt:
+        type: string
+    type: object
+  models.ProductTranslation:
+    properties:
+      description:
+        type: string
+      id:
+        type: integer
+      languageCode:
+        description: For example, "en", "ru", "uz"
+        type: string
+      name:
+        type: string
+      productID:
+        type: integer
+      shortInfo:
+        type: string
+    type: object
+  requests.AddToCartInput:
+    properties:
+      product_id:
+        type: integer
+      quantity:
+        minimum: 1
+        type: integer
+    required:
+    - product_id
+    type: object
+  requests.UpdateCartItemInput:
+    properties:
+      quantity:
+        minimum: 1
+        type: integer
+    type: object
 host: localhost:8080
 info:
   contact: {}
   description: Swagger documentation for the Bogbon Gin API.
   title: Bogbon API
   version: "1.0"
-paths: {}
+paths:
+  /cart:
+    get:
+      description: Returns all items in the user's cart.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/models.CartItem'
+            type: array
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Get cart items
+      tags:
+      - Cart
+    post:
+      consumes:
+      - application/json
+      description: Adds a product to the user's session cart.
+      parameters:
+      - description: Product to add
+        in: body
+        name: input
+        required: true
+        schema:
+          $ref: '#/definitions/requests.AddToCartInput'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/models.CartItem'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Add item to cart
+      tags:
+      - Cart
+  /cart/{id}:
+    delete:
+      description: Deletes a specific cart item from the cart.
+      parameters:
+      - description: Cart Item ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: No Content
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Delete cart item
+      tags:
+      - Cart
+    put:
+      consumes:
+      - application/json
+      description: Updates the quantity of a specific cart item.
+      parameters:
+      - description: Cart Item ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Updated quantity
+        in: body
+        name: input
+        required: true
+        schema:
+          $ref: '#/definitions/requests.UpdateCartItemInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Update cart item
+      tags:
+      - Cart
+  /cart/clear:
+    delete:
+      description: Deletes all items in the user's cart.
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: No Content
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Clear cart
+      tags:
+      - Cart
 swagger: "2.0"

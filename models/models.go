@@ -32,7 +32,7 @@ type Product struct {
 	Translations []ProductTranslation `gorm:"foreignKey:ProductID"`
 	CreatedAt    time.Time
 	UpdatedAt    time.Time
-	DeletedAt    gorm.DeletedAt `gorm:"index"`
+	DeletedAt    gorm.DeletedAt `gorm:"index" json:"-" swaggerignore:"true"`
 }
 
 // ProductTranslation: translations for product name and description in different languages
