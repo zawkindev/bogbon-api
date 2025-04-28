@@ -54,6 +54,9 @@ func ListProducts(c *gin.Context) {
 
 	// category (can be repeated)
 	for _, v := range c.QueryArray("category") {
+		if v == "" {
+			continue
+		}
 		if id, err := strconv.Atoi(v); err == nil {
 			f.CategoryIDs = append(f.CategoryIDs, uint(id))
 		} else {
