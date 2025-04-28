@@ -116,7 +116,7 @@ func CreateProduct(c *gin.Context) {
 	// Validate English translation
 	en, ok := input.Translations["en"]
 	if !ok || en.Name == "" || en.Description == "" || en.ShortInfo == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "English name and description are required"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "English name, short_info and description are required"})
 		return
 	}
 
