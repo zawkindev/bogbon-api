@@ -17,7 +17,7 @@ import (
 	"github.com/google/uuid"
 )
 
-// ListProducts now supports ?min_price=&max_price=&type=&in_stock=&category=&q=
+// ListProducts now supports ?min_price=&max_price=&type=&in_stock=&category=&q=&include_images=true
 func ListProducts(c *gin.Context) {
 	var f repository.ProductFilter
 
@@ -68,13 +68,16 @@ func ListProducts(c *gin.Context) {
 	// search term
 	f.Q = c.Query("q")
 
-	products, err := repository.FilterProducts(f)
+	// fetch products, including images
+	includeImages := c.DefaultQuery("include_images", "false") != "true"
+	products, err := repository.FilterProducts(f, includeImages)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 	c.JSON(http.StatusOK, products)
 }
+
 
 func GetProduct(c *gin.Context) {
 	idParam := c.Param("id")
@@ -196,7 +199,7 @@ func UpdateProduct(c *gin.Context) {
 	c.JSON(http.StatusOK, product)
 }
 
-// UploadProductImage handles image upload for a specific product
+// UploadProductImage handles image upload for a specific product (multiple images)
 func UploadProductImage(c *gin.Context) {
 	idParam := c.Param("id")
 	id, err := strconv.Atoi(idParam)
@@ -205,63 +208,87 @@ func UploadProductImage(c *gin.Context) {
 		return
 	}
 
-	file, err := c.FormFile("image")
+	// Parse the multipart form (to handle file uploads)
+	err = c.Request.ParseMultipartForm(10 << 20) // 10 MB limit
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Image file is required"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Failed to parse multipart form"})
 		return
 	}
 
-	ext := strings.ToLower(filepath.Ext(file.Filename))
-	if ext != ".jpg" && ext != ".jpeg" && ext != ".png" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Only JPG, JPEG, or PNG files are allowed"})
+	// Get the uploaded files
+	files := c.Request.MultipartForm.File["images"]
+	if len(files) == 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "At least one image file is required"})
 		return
 	}
 
-	srcFile, err := file.Open()
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to open uploaded file"})
-		return
-	}
-	defer srcFile.Close()
-
-	srcImage, _, err := image.Decode(srcFile)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid image format"})
-		return
-	}
-
-	resizedImage := imaging.Resize(srcImage, 400, 0, imaging.Lanczos)
-
+	// Create upload directory if it doesn't exist
 	uploadPath := "./uploads"
 	if err := os.MkdirAll(uploadPath, os.ModePerm); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Unable to create upload directory"})
 		return
 	}
 
-	imageUUID := uuid.New().String()
-	filename := fmt.Sprintf("product_%s%s", imageUUID, ext)
-	fullPath := filepath.Join(uploadPath, filename)
+	// Loop over each uploaded file
+	var imagePaths []string
+	for _, file := range files {
+		ext := strings.ToLower(filepath.Ext(file.Filename))
+		if ext != ".jpg" && ext != ".jpeg" && ext != ".png" {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Only JPG, JPEG, or PNG files are allowed"})
+			return
+		}
 
-	// Compress based on format
-	switch ext {
-	case ".jpg", ".jpeg":
-		err = imaging.Save(resizedImage, fullPath, imaging.JPEGQuality(70))
-	case ".png":
-		err = imaging.Save(resizedImage, fullPath, imaging.PNGCompressionLevel(png.BestCompression))
-	default:
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Unsupported file type"})
-		return
+		// Open the file
+		srcFile, err := file.Open()
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to open uploaded file"})
+			return
+		}
+		defer srcFile.Close()
+
+		// Decode image
+		srcImage, _, err := image.Decode(srcFile)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid image format"})
+			return
+		}
+
+		// Resize the image
+		resizedImage := imaging.Resize(srcImage, 400, 0, imaging.Lanczos)
+
+		// Generate a unique filename
+		imageUUID := uuid.New().String()
+		filename := fmt.Sprintf("product_%s%s", imageUUID, ext)
+		fullPath := filepath.Join(uploadPath, filename)
+
+		// Compress based on file type
+		switch ext {
+		case ".jpg", ".jpeg":
+			err = imaging.Save(resizedImage, fullPath, imaging.JPEGQuality(70))
+		case ".png":
+			err = imaging.Save(resizedImage, fullPath, imaging.PNGCompressionLevel(png.BestCompression))
+		default:
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Unsupported file type"})
+			return
+		}
+
+		// Add the image path to the list
+		imagePaths = append(imagePaths, fullPath)
 	}
 
-	// Update the product's image in the database
-	err = repository.UpdateProductImage(uint(id), fullPath)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update product image"})
-		return
+	// Now associate the images with the product in the database
+	for _, path := range imagePaths {
+		err = repository.UpdateProductImage(uint(id), path)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update product image"})
+			return
+		}
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": "Image uploaded successfully"})
+	c.JSON(http.StatusOK, gin.H{"message": "Images uploaded successfully"})
 }
+
+
 
 func DeleteProduct(c *gin.Context) {
 	idParam := c.Param("id")
@@ -279,8 +306,23 @@ func DeleteProduct(c *gin.Context) {
 	c.Status(http.StatusNoContent)
 }
 
-// UploadProductImage handles image upload for a specific product
-func UpdateProductImage(c *gin.Context) {
+func DeleteImage(c *gin.Context) {
+	idParam := c.Param("id")
+	id, err := strconv.ParseUint(idParam, 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid product ID"})
+		return
+	}
+
+	if err := repository.DeleteProductImage(uint(id)); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.Status(http.StatusNoContent)
+}
+
+func UpdateProductImageByID(c *gin.Context) {
 	idParam := c.Param("id")
 	id, err := strconv.Atoi(idParam)
 	if err != nil {
@@ -288,60 +330,82 @@ func UpdateProductImage(c *gin.Context) {
 		return
 	}
 
-	file, err := c.FormFile("image")
+	// Parse the multipart form (to handle file uploads)
+	err = c.Request.ParseMultipartForm(10 << 20) // 10 MB limit
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Image file is required"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Failed to parse multipart form"})
 		return
 	}
 
-	ext := strings.ToLower(filepath.Ext(file.Filename))
-	if ext != ".jpg" && ext != ".jpeg" && ext != ".png" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Only JPG, JPEG, or PNG files are allowed"})
+	// Get the uploaded files
+	files := c.Request.MultipartForm.File["images"]
+	if len(files) == 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "At least one image file is required"})
 		return
 	}
 
-	srcFile, err := file.Open()
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to open uploaded file"})
-		return
-	}
-	defer srcFile.Close()
-
-	srcImage, _, err := image.Decode(srcFile)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid image format"})
-		return
-	}
-
-	resizedImage := imaging.Resize(srcImage, 400, 0, imaging.Lanczos)
-
+	// Create upload directory if it doesn't exist
 	uploadPath := "./uploads"
 	if err := os.MkdirAll(uploadPath, os.ModePerm); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Unable to create upload directory"})
 		return
 	}
 
-	imageUUID := uuid.New().String()
-	filename := fmt.Sprintf("product_%s%s", imageUUID, ext)
-	fullPath := filepath.Join(uploadPath, filename)
+	// Loop over each uploaded file
+	var imagePaths []string
+	for _, file := range files {
+		ext := strings.ToLower(filepath.Ext(file.Filename))
+		if ext != ".jpg" && ext != ".jpeg" && ext != ".png" {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Only JPG, JPEG, or PNG files are allowed"})
+			return
+		}
 
-	// Compress based on format
-	switch ext {
-	case ".jpg", ".jpeg":
-		err = imaging.Save(resizedImage, fullPath, imaging.JPEGQuality(70))
-	case ".png":
-		err = imaging.Save(resizedImage, fullPath, imaging.PNGCompressionLevel(png.BestCompression))
-	default:
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Unsupported file type"})
-		return
+		// Open the file
+		srcFile, err := file.Open()
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to open uploaded file"})
+			return
+		}
+		defer srcFile.Close()
+
+		// Decode image
+		srcImage, _, err := image.Decode(srcFile)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid image format"})
+			return
+		}
+
+		// Resize the image
+		resizedImage := imaging.Resize(srcImage, 400, 0, imaging.Lanczos)
+
+		// Generate a unique filename
+		imageUUID := uuid.New().String()
+		filename := fmt.Sprintf("product_%s%s", imageUUID, ext)
+		fullPath := filepath.Join(uploadPath, filename)
+
+		// Compress based on file type
+		switch ext {
+		case ".jpg", ".jpeg":
+			err = imaging.Save(resizedImage, fullPath, imaging.JPEGQuality(70))
+		case ".png":
+			err = imaging.Save(resizedImage, fullPath, imaging.PNGCompressionLevel(png.BestCompression))
+		default:
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Unsupported file type"})
+			return
+		}
+
+		// Add the image path to the list
+		imagePaths = append(imagePaths, fullPath)
 	}
 
-	// Update the product's image in the database
-	err = repository.UpdateProductImage(uint(id), fullPath)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update product image"})
-		return
+	// Now associate the images with the product in the database
+	for _, path := range imagePaths {
+		err = repository.UpdateProductImage(uint(id), path)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update product image"})
+			return
+		}
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": "Image uploaded successfully"})
+	c.JSON(http.StatusOK, gin.H{"message": "Images uploaded successfully"})
 }

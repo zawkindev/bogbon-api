@@ -67,6 +67,7 @@ func main() {
 		&models.CategoryTranslation{},
 		&models.Product{},
 		&models.ProductTranslation{},
+		&models.ProductImage{},
 		&models.Order{},
 		&models.OrderItem{},
 		&models.Cart{},

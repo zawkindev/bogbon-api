@@ -27,9 +27,9 @@ type Product struct {
 	Price        int                  `gorm:"not null"`
 	Stock        int                  `gorm:"not null"`
 	Type         string               `gorm:"type:VARCHAR(20);not null"`
-	Image        string               `gorm:"size:255"`
 	Categories   []Category           `gorm:"many2many:category_products;"`
 	Translations []ProductTranslation `gorm:"foreignKey:ProductID"`
+	Images       []ProductImage       `gorm:"foreignKey:ProductID;constraint:OnDelete:CASCADE;"`
 	CreatedAt    time.Time
 	UpdatedAt    time.Time
 	DeletedAt    gorm.DeletedAt `gorm:"index" json:"-" swaggerignore:"true"`
@@ -43,6 +43,14 @@ type ProductTranslation struct {
 	Name         string `gorm:"not null"`
 	Description  string
 	ShortInfo    string
+}
+
+// image
+type ProductImage struct {
+	ID        uint   `gorm:"primaryKey;autoIncrement"`
+	ProductID uint   `gorm:"not null;index"`
+	URL       string `gorm:"size:255;not null"`
+	CreatedAt time.Time
 }
 
 // Cart model: holds the cart items before checkout

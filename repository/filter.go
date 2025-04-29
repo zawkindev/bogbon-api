@@ -20,53 +20,49 @@ type CategoryFilter struct {
 	Q string
 }
 
-// FilterProducts returns products matching any combination of filters
-func FilterProducts(f ProductFilter) ([]models.Product, error) {
-	db := config.DB.
-		Model(&models.Product{}).
-		Preload("Categories").
-		Preload("Translations")
+// FilterProducts fetches products with optional filters, and includes images if requested
+func FilterProducts(f ProductFilter, includeImages bool) ([]models.Product, error) {
+	var products []models.Product
+	query := config.DB.Preload("Categories").Preload("Translations")
 
-	// Price range
+	// Apply filters to the query
 	if f.MinPrice != nil {
-		db = db.Where("price >= ?", *f.MinPrice)
+		query = query.Where("price >= ?", f.MinPrice)
 	}
 	if f.MaxPrice != nil {
-		db = db.Where("price <= ?", *f.MaxPrice)
+		query = query.Where("price <= ?", f.MaxPrice)
 	}
-
-	// Type
 	if f.Type != "" {
-		db = db.Where("type = ?", f.Type)
+		query = query.Where("type = ?", f.Type)
+	}
+	if f.InStock != nil {
+		query = query.Where("stock > ?", 0)
+	}
+	if len(f.CategoryIDs) > 0 {
+		query = query.Joins("JOIN category_products ON category_products.product_id = products.id").
+			Where("category_products.category_id IN ?", f.CategoryIDs)
+	}
+	if f.Q != "" {
+		query = query.Where("name LIKE ?", "%"+f.Q+"%")
 	}
 
-	// In‐stock?
-	if f.InStock != nil {
-		if *f.InStock {
-			db = db.Where("stock > 0")
-		} else {
-			db = db.Where("stock = 0")
+	// Execute the query
+	if err := query.Find(&products).Error; err != nil {
+		return nil, err
+	}
+
+	// If images should be included, preload images
+	if includeImages {
+		for i := range products {
+			if err := config.DB.Preload("Images").Find(&products[i]).Error; err != nil {
+				return nil, err
+			}
 		}
 	}
 
-	// By category
-	if len(f.CategoryIDs) > 0 {
-		db = db.Joins("JOIN category_products cp ON cp.product_id = products.id").
-			Where("cp.category_id IN ?", f.CategoryIDs)
-	}
-
-	// Full‐text search on translations
-	if f.Q != "" {
-		like := "%" + strings.ToLower(f.Q) + "%"
-		db = db.Joins("JOIN product_translations pt ON pt.product_id = products.id").
-			Where("LOWER(pt.name) LIKE ? OR LOWER(pt.description) LIKE ?", like, like).
-			Group("products.id")
-	}
-
-	var products []models.Product
-	err := db.Find(&products).Error
-	return products, err
+	return products, nil
 }
+
 
 // FilterCategories by translation name
 func FilterCategories(f CategoryFilter) ([]models.Category, error) {

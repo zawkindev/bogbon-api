@@ -5,6 +5,8 @@ import (
 	"bogbon-api/models"
 	"errors"
 	"os"
+
+	"gorm.io/gorm"
 )
 
 // CreateProduct creates a product and its translations
@@ -50,7 +52,7 @@ func GetAllProducts() ([]models.Product, error) {
 // GetProductByID fetches a product by its ID with its translations and categories
 func GetProductByID(id uint) (*models.Product, error) {
 	var p models.Product
-	err := config.DB.Preload("Categories").Preload("Translations").First(&p, id).Error
+	err := config.DB.Preload("Categories").Preload("Translations").Preload("Images").First(&p, id).Error
 	if err != nil {
 		if err.Error() == "record not found" {
 			return nil, errors.New("product not found")
@@ -60,16 +62,30 @@ func GetProductByID(id uint) (*models.Product, error) {
 	return &p, nil
 }
 
-// UpdateProductImage updates the image URL for a product
+// UpdateProductImage adds a new image for a product
 func UpdateProductImage(productID uint, imagePath string) error {
+	// Check if the product exists
 	var product models.Product
 	if err := config.DB.First(&product, productID).Error; err != nil {
 		return err
 	}
 
+	// Build full URL
 	baseURL := os.Getenv("BASE_URL")
-	product.Image = baseURL + "/" + imagePath
-	return config.DB.Save(&product).Error
+	fullImageURL := baseURL + "/" + imagePath
+
+	// Create new ProductImage
+	newImage := models.ProductImage{
+		ProductID: product.ID,
+		URL:       fullImageURL,
+	}
+
+	// Save the new image to the database
+	if err := config.DB.Create(&newImage).Error; err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func CreateTranslation(translation *models.ProductTranslation) error {
@@ -111,7 +127,7 @@ func UpdateProduct(product *models.Product, translations map[string]struct {
 			Price: product.Price,
 			Stock: product.Stock,
 			Type:  product.Type,
-			Image: product.Image,
+			Images: product.Images,
 		}).Error; err != nil {
 		tx.Rollback()
 		return err
@@ -159,3 +175,21 @@ func DeleteProduct(id uint) error {
 	// Commit the transaction
 	return tx.Commit().Error
 }
+
+func DeleteProductImage(imageID uint) error {
+	var img models.ProductImage
+	err := config.DB.First(&img, imageID).Error
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return errors.New("image not found")
+		}
+		return err
+	}
+
+	if err := config.DB.Delete(&img).Error; err != nil {
+		return err
+	}
+
+	return nil
+}
+
