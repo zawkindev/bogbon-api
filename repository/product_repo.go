@@ -52,7 +52,11 @@ func GetAllProducts() ([]models.Product, error) {
 // GetProductByID fetches a product by its ID with its translations and categories
 func GetProductByID(id uint) (*models.Product, error) {
 	var p models.Product
-	err := config.DB.Preload("Categories").Preload("Translations").Preload("Images").First(&p, id).Error
+	err := config.DB.
+		Preload("Categories.Translations").
+		Preload("Categories").
+		Preload("Translations").
+		Preload("Images").First(&p, id).Error
 	if err != nil {
 		if err.Error() == "record not found" {
 			return nil, errors.New("product not found")
@@ -124,9 +128,9 @@ func UpdateProduct(product *models.Product, translations map[string]struct {
 	// Update product fields
 	if err := tx.Model(&models.Product{}).Where("id = ?", product.ID).
 		Updates(models.Product{
-			Price: product.Price,
-			Stock: product.Stock,
-			Type:  product.Type,
+			Price:  product.Price,
+			Stock:  product.Stock,
+			Type:   product.Type,
 			Images: product.Images,
 		}).Error; err != nil {
 		tx.Rollback()
@@ -192,4 +196,3 @@ func DeleteProductImage(imageID uint) error {
 
 	return nil
 }
-
