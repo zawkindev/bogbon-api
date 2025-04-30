@@ -33,6 +33,7 @@ func main() {
 	// gin
 	r := gin.Default()
 
+	// CORS middleware
 	r.Use(cors.New(cors.Config{
 		AllowOrigins:     []string{"http://localhost:3000", "https://gardening-service.uz"},
 		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
