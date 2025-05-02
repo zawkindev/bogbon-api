@@ -3,9 +3,11 @@ package controllers
 import (
 	"bogbon-api/models"
 	"bogbon-api/repository"
-	"github.com/gin-gonic/gin"
 	"net/http"
+	"sort"
 	"strconv"
+
+	"github.com/gin-gonic/gin"
 )
 
 // ListCategories responds with all categories (including translations),
@@ -27,6 +29,19 @@ func ListCategories(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
+
+	// Sort by length of the first translation name (desc)
+	sort.SliceStable(cats, func(i, j int) bool {
+		nameI := ""
+		nameJ := ""
+		if len(cats[i].Translations) > 0 {
+			nameI = cats[i].Translations[0].Name
+		}
+		if len(cats[j].Translations) > 0 {
+			nameJ = cats[j].Translations[0].Name
+		}
+		return len(nameI) > len(nameJ)
+	})
 
 	c.JSON(http.StatusOK, cats)
 }
