@@ -12,6 +12,8 @@ import (
 
 	"bogbon-api/models"
 	"bogbon-api/repository"
+	"bogbon-api/utils"
+
 	"github.com/disintegration/imaging"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
@@ -52,6 +54,16 @@ func ListProducts(c *gin.Context) {
 		f.InStock = &b
 	}
 
+	// in_resized
+	if v := c.Query("is_original"); v != "" {
+		r, err := strconv.ParseBool(v)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid is_original"})
+			return
+		}
+		f.IsOriginal = &r
+	}
+
 	// category (can be repeated)
 	for _, v := range c.QueryArray("category") {
 		if v == "" {
@@ -77,7 +89,6 @@ func ListProducts(c *gin.Context) {
 	}
 	c.JSON(http.StatusOK, products)
 }
-
 
 func GetProduct(c *gin.Context) {
 	idParam := c.Param("id")
@@ -223,9 +234,11 @@ func UploadProductImage(c *gin.Context) {
 	}
 
 	// Create upload directory if it doesn't exist
-	uploadPath := "./uploads"
-	if err := os.MkdirAll(uploadPath, os.ModePerm); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Unable to create upload directory"})
+	minUploadPath := "./min_uploads"
+	maxUploadPath := "./max_uploads"
+
+	if err := utils.CreateDirs(minUploadPath, maxUploadPath); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
@@ -247,33 +260,37 @@ func UploadProductImage(c *gin.Context) {
 		defer srcFile.Close()
 
 		// Decode image
-		srcImage, _, err := image.Decode(srcFile)
+		maxImage, _, err := image.Decode(srcFile)
 		if err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid image format"})
 			return
 		}
 
 		// Resize the image
-		resizedImage := imaging.Resize(srcImage, 0, 273, imaging.Lanczos)
+		minImage := imaging.Resize(maxImage, 0, 273, imaging.Lanczos)
 
 		// Generate a unique filename
 		imageUUID := uuid.New().String()
 		filename := fmt.Sprintf("product_%s%s", imageUUID, ext)
-		fullPath := filepath.Join(uploadPath, filename)
+		minFullPath := filepath.Join(minUploadPath, filename)
+		maxFullPath := filepath.Join(maxUploadPath, filename)
 
 		// Compress based on file type
 		switch ext {
 		case ".jpg", ".jpeg":
-			err = imaging.Save(resizedImage, fullPath, imaging.JPEGQuality(70))
+			err = imaging.Save(minImage, minFullPath, imaging.JPEGQuality(70))
+			err = imaging.Save(maxImage, maxFullPath, imaging.JPEGQuality(70))
 		case ".png":
-			err = imaging.Save(resizedImage, fullPath, imaging.PNGCompressionLevel(png.BestCompression))
+			err = imaging.Save(minImage, minFullPath, imaging.PNGCompressionLevel(png.BestCompression))
+			err = imaging.Save(maxImage, maxFullPath, imaging.PNGCompressionLevel(png.BestCompression))
 		default:
 			c.JSON(http.StatusBadRequest, gin.H{"error": "Unsupported file type"})
 			return
 		}
 
 		// Add the image path to the list
-		imagePaths = append(imagePaths, fullPath)
+		imagePaths = append(imagePaths, minFullPath)
+		imagePaths = append(imagePaths, maxFullPath)
 	}
 
 	// Now associate the images with the product in the database
@@ -287,8 +304,6 @@ func UploadProductImage(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{"message": "Images uploaded successfully"})
 }
-
-
 
 func DeleteProduct(c *gin.Context) {
 	idParam := c.Param("id")

@@ -5,6 +5,7 @@ import (
 	"bogbon-api/models"
 	"errors"
 	"os"
+	"strings"
 
 	"gorm.io/gorm"
 )
@@ -56,13 +57,16 @@ func GetProductByID(id uint) (*models.Product, error) {
 		Preload("Categories.Translations").
 		Preload("Categories").
 		Preload("Translations").
-		Preload("Images").First(&p, id).Error
+		Preload("Images", "is_original = ?", true).First(&p, id).Error
+
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return nil, errors.New("product not found")
+	}
+
 	if err != nil {
-		if err.Error() == "record not found" {
-			return nil, errors.New("product not found")
-		}
 		return nil, err
 	}
+
 	return &p, nil
 }
 
@@ -78,10 +82,14 @@ func UpdateProductImage(productID uint, imagePath string) error {
 	baseURL := os.Getenv("BASE_URL")
 	fullImageURL := baseURL + "/" + imagePath
 
+	// check if image is not resized
+	isOriginal := strings.HasPrefix(imagePath, "max")
+
 	// Create new ProductImage
 	newImage := models.ProductImage{
-		ProductID: product.ID,
-		URL:       fullImageURL,
+		ProductID:  product.ID,
+		URL:        fullImageURL,
+		IsOriginal: isOriginal,
 	}
 
 	// Save the new image to the database

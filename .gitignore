@@ -1,4 +1,6 @@
 .venv/
 .env
 uploads/
+min_uploads/
+max_uploads/
 

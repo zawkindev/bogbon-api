@@ -14,6 +14,7 @@ type ProductFilter struct {
 	InStock     *bool
 	CategoryIDs []uint
 	Q           string
+	IsOriginal  *bool
 }
 
 type CategoryFilter struct {
@@ -37,6 +38,9 @@ func FilterProducts(f ProductFilter, includeImages bool) ([]models.Product, erro
 	}
 	if f.InStock != nil {
 		query = query.Where("stock > ?", 0)
+	}
+	if f.IsOriginal != nil {
+		query = query.Where("isOriginal = ?", *f.IsOriginal)
 	}
 	if len(f.CategoryIDs) > 0 {
 		query = query.Joins("JOIN category_products ON category_products.product_id = products.id").
@@ -62,7 +66,6 @@ func FilterProducts(f ProductFilter, includeImages bool) ([]models.Product, erro
 
 	return products, nil
 }
-
 
 // FilterCategories by translation name
 func FilterCategories(f CategoryFilter) ([]models.Category, error) {

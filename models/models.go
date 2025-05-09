@@ -47,10 +47,11 @@ type ProductTranslation struct {
 
 // image
 type ProductImage struct {
-	ID        uint   `gorm:"primaryKey;autoIncrement"`
-	ProductID uint   `gorm:"not null;index"`
-	URL       string `gorm:"size:255;not null"`
-	CreatedAt time.Time
+	ID         uint   `gorm:"primaryKey;autoIncrement"`
+	ProductID  uint   `gorm:"not null;index"`
+	URL        string `gorm:"size:255;not null"`
+	IsOriginal bool   `gorm:"not null"`
+	CreatedAt  time.Time
 }
 
 // Cart model: holds the cart items before checkout
