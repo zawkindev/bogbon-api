@@ -44,7 +44,8 @@ func main() {
 	}))
 
 	// Serve uploaded images
-	r.Static("/uploads", "./uploads")
+	r.Static("/min_uploads", "./min_uploads")
+	r.Static("/max_uploads", "./max_uploads")
 
 	// Limit file size
 	// r.MaxMultipartMemory = 8 << 20 // 8 MB
