@@ -5,7 +5,6 @@ import (
 	"bogbon-api/models"
 	"errors"
 	"os"
-	"strings"
 
 	"gorm.io/gorm"
 )
@@ -71,7 +70,7 @@ func GetProductByID(id uint) (*models.Product, error) {
 }
 
 // UpdateProductImage adds a new image for a product
-func UpdateProductImage(productID uint, imagePath string) error {
+func UpdateProductImage(productID uint, imagePath string, isOriginal bool) error {
 	// Check if the product exists
 	var product models.Product
 	if err := config.DB.First(&product, productID).Error; err != nil {
@@ -81,9 +80,6 @@ func UpdateProductImage(productID uint, imagePath string) error {
 	// Build full URL
 	baseURL := os.Getenv("BASE_URL")
 	fullImageURL := baseURL + "/" + imagePath
-
-	// check if image is not resized
-	isOriginal := strings.HasPrefix(imagePath, "max")
 
 	// Create new ProductImage
 	newImage := models.ProductImage{
