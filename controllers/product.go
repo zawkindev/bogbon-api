@@ -234,8 +234,8 @@ func UploadProductImage(c *gin.Context) {
 	}
 
 	// Create upload directory if it doesn't exist
-	minUploadPath := "./min_uploads"
-	maxUploadPath := "./max_uploads"
+	minUploadPath := "./uploads/min_uploads"
+	maxUploadPath := "./uploads/max_uploads"
 
 	if err := utils.CreateDirs(minUploadPath, maxUploadPath); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
