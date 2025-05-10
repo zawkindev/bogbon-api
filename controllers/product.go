@@ -255,7 +255,7 @@ func UploadProductImage(c *gin.Context) {
 		}
 
 		// Resize the image
-		minImage := imaging.Resize(maxImage, 0, 273, imaging.Lanczos)
+		minImage := imaging.Resize(maxImage, 0, 305, imaging.Lanczos)
 
 		// Generate a unique filename
 		imageUUID := uuid.New().String()
@@ -369,7 +369,7 @@ func UpdateProductImageByID(c *gin.Context) {
 		}
 
 		// Resize the image
-		minImage := imaging.Resize(maxImage, 0, 273, imaging.Lanczos)
+		minImage := imaging.Resize(maxImage, 0, 305, imaging.Lanczos)
 
 		// Generate a unique filename
 		imageUUID := uuid.New().String()
