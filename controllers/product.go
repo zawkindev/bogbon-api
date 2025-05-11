@@ -5,6 +5,7 @@ import (
 	"image"
 	"image/png"
 	"net/http"
+	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -12,9 +13,11 @@ import (
 	"bogbon-api/models"
 	"bogbon-api/repository"
 
+	"github.com/chai2010/webp"
 	"github.com/disintegration/imaging"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
+	"github.com/nfnt/resize"
 )
 
 // ListProducts now supports ?min_price=&max_price=&type=&in_stock=&category=&q=&include_images=true
@@ -255,24 +258,39 @@ func UploadProductImage(c *gin.Context) {
 		}
 
 		// Resize the image
-		minImage := imaging.Resize(maxImage, 0, 305, imaging.Lanczos)
+		minImage := resize.Resize(0, 305, maxImage, resize.Lanczos3)
 
 		// Generate a unique filename
 		imageUUID := uuid.New().String()
-		filename := fmt.Sprintf("product_%s%s", imageUUID, ext)
+		filename := fmt.Sprintf("product_%s.webp", imageUUID)
 		minFullPath := filepath.Join("uploads/min_uploads", filename)
 		maxFullPath := filepath.Join("uploads/max_uploads", filename)
 
-		// Compress based on file type
-		switch ext {
-		case ".jpg", ".jpeg":
-			err = imaging.Save(minImage, minFullPath, imaging.JPEGQuality(70))
-			err = imaging.Save(maxImage, maxFullPath, imaging.JPEGQuality(70))
-		case ".png":
-			err = imaging.Save(minImage, minFullPath, imaging.PNGCompressionLevel(png.BestCompression))
-			err = imaging.Save(maxImage, maxFullPath, imaging.PNGCompressionLevel(png.BestCompression))
-		default:
-			c.JSON(http.StatusBadRequest, gin.H{"error": "Unsupported file type"})
+		// Create file to save WebP image
+		minFile, err := os.Create(minFullPath)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create min WebP file"})
+			return
+		}
+		defer minFile.Close()
+
+		maxFile, err := os.Create(maxFullPath)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create max WebP file"})
+			return
+		}
+		defer maxFile.Close()
+
+		// Encode and save the images as WebP
+		err = webp.Encode(minFile, minImage, &webp.Options{Quality: 75})
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to encode min image to WebP"})
+			return
+		}
+
+		err = webp.Encode(maxFile, maxImage, &webp.Options{Quality: 75})
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to encode max image to WebP"})
 			return
 		}
 
