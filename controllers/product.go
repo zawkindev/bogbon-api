@@ -267,9 +267,13 @@ func UploadProductImage(c *gin.Context) {
 		// Resize the image
 		minImage := resize.Resize(0, 305, maxImage, resize.Lanczos3)
 
+		// Extract the base name without the extension
+		fileName := file.Filename
+		baseName := fileName[:len(fileName)-len(filepath.Ext(fileName))]
+
 		// Generate a unique filename
 		imageUUID := uuid.New().String()
-		filename := fmt.Sprintf(file.Filename+"_product_%s.webp", imageUUID)
+		filename := fmt.Sprintf(baseName+"_product_%s.webp", imageUUID)
 		minFullPath := filepath.Join("uploads/min_uploads", filename)
 		maxFullPath := filepath.Join("uploads/max_uploads", filename)
 
