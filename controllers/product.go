@@ -56,14 +56,21 @@ func ListProducts(c *gin.Context) {
 	}
 
 	// in_resized
+	// is_original
 	if v := c.Query("is_original"); v != "" {
 		r, err := strconv.ParseBool(v)
 		if err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid is_original"})
 			return
 		}
-		f.IsOriginal = &r
+		f.IsOriginal = r
+	} else {
+		// If `is_original` is not provided, you can set it to false (or true, depending on your default behavior).
+		f.IsOriginal = false // Default to `false` if not specified
 	}
+
+	fmt.Printf("isORIGINAL: ")
+	fmt.Println(f.IsOriginal)
 
 	// category (can be repeated)
 	for _, v := range c.QueryArray("category") {
@@ -262,7 +269,7 @@ func UploadProductImage(c *gin.Context) {
 
 		// Generate a unique filename
 		imageUUID := uuid.New().String()
-		filename := fmt.Sprintf("product_%s.webp", imageUUID)
+		filename := fmt.Sprintf(file.Filename+"_product_%s.webp", imageUUID)
 		minFullPath := filepath.Join("uploads/min_uploads", filename)
 		maxFullPath := filepath.Join("uploads/max_uploads", filename)
 

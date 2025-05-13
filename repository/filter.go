@@ -1,6 +1,8 @@
 package repository
 
 import (
+	"fmt"
+	"sort"
 	"strings"
 
 	"bogbon-api/config"
@@ -14,17 +16,17 @@ type ProductFilter struct {
 	InStock     *bool
 	CategoryIDs []uint
 	Q           string
-	IsOriginal  *bool
+	IsOriginal  bool
 }
 
 type CategoryFilter struct {
 	Q string
 }
 
-// FilterProducts fetches products with optional filters, and includes images if requested
 func FilterProducts(f ProductFilter, includeImages bool) ([]models.Product, error) {
 	var products []models.Product
-	query := config.DB.Preload("Categories").Preload("Translations")
+
+	query := config.DB.Preload("Categories").Preload("Translations").Preload("Images", "is_original = ?", f.IsOriginal)
 
 	// Apply filters to the query
 	if f.MinPrice != nil {
@@ -39,9 +41,6 @@ func FilterProducts(f ProductFilter, includeImages bool) ([]models.Product, erro
 	if f.InStock != nil {
 		query = query.Where("stock > ?", 0)
 	}
-	if f.IsOriginal != nil {
-		query = query.Where("isOriginal = ?", *f.IsOriginal)
-	}
 	if len(f.CategoryIDs) > 0 {
 		query = query.Joins("JOIN category_products ON category_products.product_id = products.id").
 			Where("category_products.category_id IN ?", f.CategoryIDs)
@@ -55,16 +54,38 @@ func FilterProducts(f ProductFilter, includeImages bool) ([]models.Product, erro
 		return nil, err
 	}
 
-	// If images should be included, preload images
-	if includeImages {
-		for i := range products {
-			if err := config.DB.Preload("Images").Find(&products[i]).Error; err != nil {
-				return nil, err
-			}
-		}
+	// If images should be included, sort images after querying
+	for i := range products {
+		// Sort images array: 'default' images first
+		images := products[i].Images
+		products[i].Images = sortImagesByDefault(images)
 	}
 
+	fmt.Println("THE QUERY: ", query)
+
 	return products, nil
+}
+
+// sortImagesByDefault sorts images such that images with 'default' in the URL appear first.
+func sortImagesByDefault(images []models.ProductImage) []models.ProductImage {
+	sortedImages := make([]models.ProductImage, len(images))
+	copy(sortedImages, images)
+
+	sort.SliceStable(sortedImages, func(i, j int) bool {
+		isDefaultI := strings.Contains(sortedImages[i].URL, "default")
+		isDefaultJ := strings.Contains(sortedImages[j].URL, "default")
+
+		if isDefaultI && !isDefaultJ {
+			return true
+		}
+		if !isDefaultI && isDefaultJ {
+			return false
+		}
+
+		return sortedImages[i].ID < sortedImages[j].ID
+	})
+
+	return sortedImages
 }
 
 // FilterCategories by translation name
