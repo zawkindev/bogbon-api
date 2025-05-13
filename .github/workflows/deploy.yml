@@ -7,6 +7,7 @@ on:
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
 
     steps:
     - name: SSH and Deploy
@@ -19,10 +20,14 @@ jobs:
           if [ "${{ github.ref }}" == "refs/heads/main" ]; then
             cd /srv/gardening/backend/production
             git pull origin main
+            sudo /bin/pkill -f "/srv/gardening/backend/production"
+            go mod tidy
             sudo /bin/systemctl restart gardening-backend-prod.service
           else
             cd /srv/gardening/backend/test
             git pull origin develop
+            sudo /bin/pkill -f "/srv/gardening/backend/production"
+            go mod tidy
             sudo /bin/systemctl restart gardening-backend-test.service
           fi
 
